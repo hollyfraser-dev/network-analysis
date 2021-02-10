@@ -1,0 +1,71 @@
+# Undirected network model using the big five personality data
+
+library(bootnet) # define bootnet
+library(qgraph) # plots the cool stuff
+library(psychonetrics) # main networks package
+library(BGGM) # bayesian graphical models package
+library(dplyr)
+
+data <- read.csv("Big five.csv", header =T, na.strings = c("-10", "-1", "-4")) # removing ALSPAC coded missing var
+
+big5_df <- data[c('kz021',
+                  'fg7360',
+                  'fg7361',
+                  'fg7362',
+                  'fg7363',
+                  'fg7364')]
+
+
+names(big5_df)[1] <- "S" # sex
+names(big5_df)[2] <- "E" # extraversion
+names(big5_df)[3] <- "A" # agreeableness
+names(big5_df)[4] <- "C" # conscientousness
+names(big5_df)[5] <- "ES" # emotional stability
+names(big5_df)[6] <- "I" # intellect
+
+# cleaning data
+big5_df <- na.omit(big5_df)
+
+# choosing the model search strategy - ggModSelect with stepwise estimation
+
+big5_ggm <- estimateNetwork(big5_df, stepwise = TRUE, default = "ggmModSelect", corMethod = "spearman") # the corMethod here will depend on data type eg. spearman for ordinal data
+plot(big5_ggm, filetype = "png", filename = "Big 5_DEMOG")
+# or
+plot(big5_ggm)
+
+# network metrics
+# centrality
+
+centralityPlot(big5_ggm, include = c("Strength", "Betweenness", "Closeness", "ExpectedInfluence"))
+# be careful about interpreting these metrics https://psych-networks.com/how-to-not-interpret-centrality-values-in-network-structures/
+
+# metric values
+centRes$OutDegree
+centRes$Closeness
+centRes$Betweenness
+centRes$OutExpectedInfluence # can be in or out - same in an undirected model
+
+# thresholding strategies - to hide insignificant edges
+
+# using significance values (psychonetrics)
+
+big5_net <- estimateNetwork(big5_df, default = "pcor", corMethod = "spearman", threshold = "sig", alpha = 0.01) # removing edges that are not significant at an alpha level of 0.01. Could also use bonferroni instead of sig here to adjust for multiple comparisons (but only for big sample sizes)
+plot(big5_net, layout = "spring")
+
+# using bootstrapping (bootnet)
+boots <- bootnet(net, nCores = 8) # this is computationally heavy - check how many cores your machine has
+bootThreshold(boots, alpha = 0.01)
+plot(boots)
+
+# using credibility intervals (BGGM)
+
+fit <- estimate(big5_df)
+net <- select(fit)
+net$pcor_adj # need to go back over interpretation of this output 
+net$pcor_mat_zero 
+
+# pruning strategy (psychonetrics) - to remove insignficant edges and reestimate network
+
+mod <- ggm(big5_df) %>% runmodel %>% prune(alpha = 0.01) # you can prune recursively as well, and repeat the ste ps 
+net <- getmatrix(mod, "omega")
+prune <- qgraph(net) # nodes need relabelling for some reason here

@@ -69,3 +69,5 @@ net$pcor_mat_zero
 mod <- ggm(big5_df) %>% runmodel %>% prune(alpha = 0.01) # you can prune recursively as well, and repeat the ste ps 
 net <- getmatrix(mod, "omega")
 prune <- qgraph(net) # nodes need relabelling for some reason here
+
+# need to add min, max and cut
